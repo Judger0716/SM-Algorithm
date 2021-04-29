@@ -1,3 +1,5 @@
+import math
+
 # 2进制转16进制
 def BtoH(text):
     text = str(text)
@@ -192,31 +194,99 @@ def sm4_decrypt(inputX,rk):
         res += X[35-i]
     return BtoH(res)
 
+# 消息字符串转比特串
+def msg2bit(msg):
+    res = ''
+    for c in msg:
+        a = ord(c)
+        res += bin(a)[2:].zfill(8)
+    return res    
+
+# 比特串转消息字符串
+def bit2msg(b):
+    res = ''
+    for i in range(int(len(b)/8)):
+        cbit = b[i*8:(i+1)*8]
+        res += chr(int(cbit,base=2))
+    return res
+
+# 字符消息转成128bit分组
+def get_msggroup(plaintext):
+    plaintext_2 = msg2bit(plaintext)  # 转为2进制比特串
+    group_num = math.ceil(len(plaintext_2)/128)  # 求出分组组数
+    msg_group = []
+
+    # 对于前group_num-1个分组，必定是128位，直接添加到分组消息中
+    for i in range(group_num-1):
+        msg_group.append(plaintext_2[0:128])
+        plaintext_2 = plaintext_2[128:]
+
+    remain_len = len(plaintext_2)  # 获得最后一个消息分组的长度（可能不足128bit）
+    # 如果最后一个消息分组是128bit，则直接添加
+    if(remain_len==128):
+        msg_group.append(plaintext_2)
+        msg_group.append(''.zfill(128))  # 在消息分组结尾添加一个全0分组，标识最后一个分组原本为128位
+    
+    # 如果最后一个消息分组不足128bit，则根据它的二进制串第一位，填充与之相反的0/1在前，补足128位
+    else:
+        if(plaintext_2[0]=='1'):
+            plaintext_2 = plaintext_2.zfill(128-remain_len)
+        else:
+            for i in range(128-remain_len):
+                plaintext_2 = '1' + plaintext_2
+        msg_group.append(plaintext_2)
+        # 在消息分组结尾添加一个全1分组，标识最后一个分组原本不足128位，含有填充字符
+        msg_group.append('11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111')
+    return msg_group
+
 if __name__ == "__main__":
     
     # 明文
-    plaintext = '10cba071230ba9e796f9123f01702bc2'
+    plaintext = 'Today is a good day, i want to go home and sleep for a while'
     print('明文为：',plaintext)
     # 加密密钥
     key = '0123456789abcdeffedcba9876543210'
+    print('加解密密钥为：', key)
     rk = Key_Expand(key)  # 密钥扩展
 
     # 获得明文分组
-    plaintext_2 = HtoB(plaintext)
-    X = []
-    for i in range(4):
-        X.append(plaintext_2[i*32:(i+1)*32])
-    
-    # sm4加密
-    encryption = sm4_encrypt(X,rk)
-    print('加密密文为：',encryption)
+    msg_group = get_msggroup(plaintext)
 
-    # 获得密文分组
-    Y = []
-    encryption_2 = HtoB(encryption)
-    for i in range(4):
-        Y.append(encryption_2[i*32:(i+1)*32])
-    
-    # sm4解密
-    decryption = sm4_decrypt(Y,rk)
-    print('解密密文为：',decryption)
+    # SM4加密
+    cipher_text = []
+    for msg in msg_group:
+        X = []
+        for i in range(4):
+            X.append(msg[i*32:(i+1)*32])
+        encryption = sm4_encrypt(X,rk)
+        cipher_text.append(encryption)
+    print('加密密文分组为：\n',cipher_text)
+
+    # SM4解密
+    decrypt_text = []
+    for cphtext in cipher_text:
+        # 获得密文分组
+        Y = []
+        cph_2 = HtoB(cphtext)
+        for i in range(4):
+            Y.append(cph_2[i*32:(i+1)*32])
+        decryption = sm4_decrypt(Y,rk)
+        decrypt_text.append(decryption)
+    print('解密密文分组为：\n',decrypt_text)
+
+    # 解密密文分组
+    res = ''
+    for i in range(len(decrypt_text)-2):
+        dcptext_2 = HtoB(decrypt_text[i])
+        res += bit2msg(dcptext_2)
+    if(decrypt_text[len(decrypt_text)-1]==''.zfill(128)):
+        res += bit2msg(decrypt_text[len(decrypt_text)-2])
+    else:
+        laststr = HtoB(decrypt_text[len(decrypt_text)-2])
+        plug_char = laststr[0]
+        index = 0
+        while(laststr[index]==plug_char):
+            index += 1
+        res += bit2msg(laststr[index:])
+    print('解密得到：',res)
+        
