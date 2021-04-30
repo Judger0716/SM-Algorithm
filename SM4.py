@@ -175,7 +175,7 @@ def Key_Expand(key_2):
         #print("rk[",i,']',BtoH(rk[i]))
     return rk
 
-def sm4_encrypt(inputX,rk):
+def SM4_encrypt(inputX,rk):
     X = inputX
     for i in range(32):
         X.append(F(X[i],X[i+1],X[i+2],X[i+3],rk[i]))
@@ -185,7 +185,7 @@ def sm4_encrypt(inputX,rk):
         res += X[35-i]
     return BtoH(res)
 
-def sm4_decrypt(inputX,rk):
+def SM4_decrypt(inputX,rk):
     X = inputX
     for i in range(32):
         X.append(F(X[i],X[i+1],X[i+2],X[i+3],rk[31-i]))
@@ -242,7 +242,7 @@ def get_msggroup(plaintext):
 if __name__ == "__main__":
     
     # 明文
-    plaintext = 'Today is a good day, i want to go home and sleep for a while'
+    plaintext = 'SM4 Algorithm developed by ZhangYanran'
     print('明文为：',plaintext)
     # 加密密钥
     key = '0123456789abcdeffedcba9876543210'
@@ -258,7 +258,7 @@ if __name__ == "__main__":
         X = []
         for i in range(4):
             X.append(msg[i*32:(i+1)*32])
-        encryption = sm4_encrypt(X,rk)
+        encryption = SM4_encrypt(X,rk)
         cipher_text.append(encryption)
     print('加密密文分组为：\n',cipher_text)
 
@@ -270,7 +270,7 @@ if __name__ == "__main__":
         cph_2 = HtoB(cphtext)
         for i in range(4):
             Y.append(cph_2[i*32:(i+1)*32])
-        decryption = sm4_decrypt(Y,rk)
+        decryption = SM4_decrypt(Y,rk)
         decrypt_text.append(decryption)
     print('解密密文分组为：\n',decrypt_text)
 
