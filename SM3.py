@@ -255,6 +255,7 @@ def OtoH(text):
         text_10 = '0' + text_10   
     return text_10
 
+# SM3_digest
 def SM3_digest(c):
     m = Fill(c)
     w = Expand(m)
@@ -262,7 +263,7 @@ def SM3_digest(c):
     return b
 
 if __name__ == "__main__":
-    c = 'encryption standard' # 要加密的内容
+    c = 'cybersecurity' # 要加密的内容
     m = Fill(c)
     #print(m)
     w = Expand(m)
