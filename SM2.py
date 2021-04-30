@@ -1,6 +1,4 @@
-import random
-import math
-import SM3
+import random,math,SM3
 
 # 扩展欧几里得算法求逆元
 def get_gcd(a, b): 
@@ -48,22 +46,23 @@ def multiplyk_point(Px,Py,k,a,p):
         Qx,Qy = multiply2_point(Qx,Qy,a,p)
         if(k[j]=='1'):
             Qx,Qy = add_point(Qx,Qy,Px,Py,p)
-        #print(j,':',k[j],'(',Qx,',',Qy,')')
     return Qx,Qy
 
 # 验证公钥满足条件
 def key_statisfy(n,Px,Py,a,b,p):
+    # P不能是无穷远点
     if(Px=='O' or Py=='O'):
         return False
+    # P必须是Fq中的元素
     if(Px<0 or Py<0 or Px>p-1 or Py>p-1):
         return False
+    # P满足椭圆曲线方程
     left = (Py**2)%p
     right = (Px**3+a*Px+b)%p
-    #print('left:',left,'\nright:',right)
     if(left!=right):
         return False
+    # [n]P为无穷远点
     nPx,nPy = multiplyk_point(Px,Py,n,a,p)
-    #print('nPx:',nPx,'\nnPy:',nPy)
     if(nPx!='O' or nPy!='O'):
         return False
     return True
@@ -112,7 +111,6 @@ def KDF(Z,klen):
     for i in range(1,math.ceil(klen/v)):
         K += Ha[i]
     K += Haa
-    #print(K,len(K))
     return K
 
 # 按位异或
@@ -153,52 +151,40 @@ def bit2msg(b):
 
 # bit str M
 def SM2_encrypt(M,n,Gx,Gy,a,b,p,Px,Py):
-    print('SM2 ENCRYPTION')
+    #print('SM2 ENCRYPTION')
     klen = len(M)
-
     # A1
     k = random.randint(1,n-1)
-
     # A2
     x1,y1 = multiplyk_point(Gx,Gy,k,a,p)
     C1 = point2bit(x1,y1,p)
-
     # A3
     h = math.floor(((math.sqrt(p)+1)**2)/n)
     Sx,Sy = multiplyk_point(Px,Py,h,a,p)
     if(Sx=='O' or Sy=='0'):
-        print('False Public Key!')
         return False
-
     # A4
     x2,y2 = multiplyk_point(Px,Py,k,a,p)
     x2_bit = Fq2bit(x2,p)
     y2_bit = Fq2bit(y2,p)
-
     # A5
     t = KDF(x2_bit+y2_bit,klen)
     if(int(t,base=2)==0):
-        print("t is all 0 bitstr")
-        return
-
+        return False
     # A6
     C2 = Xor(M,t)
-
     # A7
     C3 = SM3.SM3_digest(x2_bit+M+y2_bit)
-
     # A8
     C = [C1,C2,C3]
-
     return C 
 
 def SM2_decrypt(C,n,Gx,Gy,a,b,p,d):
-    print('SM2 DECRYPTION')
+    #print('SM2 DECRYPTION')
     C1 = C[0]
     C2 = C[1]
     C3 = C[2]
     klen = len(C2)
-
     # B1
     PC = C1[:8] # PC=04
     bit_len = int((len(C1)-8)/2)
@@ -207,35 +193,26 @@ def SM2_decrypt(C,n,Gx,Gy,a,b,p,d):
     left = (y1**2)%p
     right = (x1**3+a*x1+b)%p
     if(left!=right):
-        print('Invalid Encrpytion.')
         return False
-    
     # B2
     h = math.floor(((math.sqrt(p)+1)**2)/n)
     Sx,Sy = multiplyk_point(Px,Py,h,a,p)
     if(Sx=='O' or Sy=='0'):
-        print('False Public Key!')
         return False
-    
     # B3
     x2,y2 = multiplyk_point(x1,y1,d,a,p)
-    #print('x2:',x2,'\ny2:',y2)
     x2_bit = Fq2bit(x2,p)
     y2_bit = Fq2bit(y2,p)
-
     # B4
     t = KDF(x2_bit+y2_bit,klen)
     if(int(t,base=2)==0):
-        print("t is all 0 bitstr")
-        return 
-
+        return False
     # B5
     MM = Xor(C2,t)
-
     # B6
     u = SM3.SM3_digest(x2_bit+MM+y2_bit)
-    print(u==C3)
-
+    if(u!=C3):
+        return False
     # B7
     return MM
 
@@ -260,15 +237,19 @@ if __name__ == "__main__":
 
     # 产生公私钥对
     d,Px,Py = gen_keypair(n,Gx,Gy,a,b,p)
-    print('d:',d,'\nPx:',Px,'\nPy:',Py)
+    print('d:',hex(d),'\nPx:',hex(Px),'\nPy:',hex(Py))
 
     # SM2_Encrpytion
-    msg = 'encrytion standard'
+    msg = 'encryption standard'
+    print('明文为：',msg)
     plain_text = msg2bit(msg)
     cipher_text = SM2_encrypt(plain_text,n,Gx,Gy,a,b,p,Px,Py)
-    print(cipher_text)
+    hexresult = ''
+    for c in cipher_text:
+        hexresult += hex(int(c,base=2))
+    print('加密得到密文：',hexresult)
 
     # SM2_Decryption
     decrypt_text = SM2_decrypt(cipher_text,n,Gx,Gy,a,b,p,d)
     decrypt_text = bit2msg(decrypt_text)
-    print(decrypt_text)
+    print('解密得到明文：',decrypt_text)
